@@ -11,10 +11,10 @@ import java.util.stream.Collectors;
 
 public class OutputWriter {
 
-    public static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     void writeFile(String outputFormat, String targetDir, List<Category> categories) throws IOException {
-        final Path path = Paths.get(targetDir + "/outputFile." + outputFormat.toLowerCase());
+        final Path path = Paths.get(targetDir + "/outputFile." + outputFormat);
 
         if (outputFormat.equals("json")) {
             writeJsonFile(path, categories);
@@ -27,7 +27,7 @@ public class OutputWriter {
 
         }
     }
-
+    // TODO make name to be link to category public html
     private void writeHtmlFile(Path path, List<String> names) throws IOException {
         StringJoiner stringJoiner = new StringJoiner("\n\n");
         for (String name : names) {

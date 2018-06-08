@@ -1,4 +1,5 @@
-import org.apache.commons.validator.routines.UrlValidator;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -8,11 +9,12 @@ import java.util.List;
 
 public class ApiRunner {
 
-    private final static String ANSWERS_CAT = "/api/v1/categories";
-    private final static String ANSWERS_DEF_PROTOCOL = "http://";
-    private final static String ANSWERS_DEF_LOCALE = "en";
-    private final static List<String> SUPPORTED_LOCALE = Arrays.asList("en","es","fr","pt","de","it","ru","ja","ko");
-
+    private final static List<String> SUPPORTED_HOSTS = Arrays.asList("wix.wixanswers.com","help.wixanswers.com");
+    private final static List<String> SUPPORTED_LOCALES = Arrays.asList("en","es","fr","pt","de","it","ru","ja","ko");
+    private final static List<String> SUPPORTED_FILE_FORMATS = Arrays.asList("html","json");
+    private final static String CAT_CONTEXT = "/api/v1/categories";
+    private final static List<String> SUPPORTED_PROTOCOLS = Arrays.asList("https://","http://"); //first index is default
+    //TODO handle locale not available in only some locale - what to return when requested locale legal but not available
     private final RequestHandler requestHandler;
     private final OutputWriter outputWriter;
 
@@ -26,31 +28,62 @@ public class ApiRunner {
         // outFormat(html|json), destDir(local dir to store responses)
         // Http GET -  https://wix.wixanswers.com/api/v1/categories?locale=en
 
-        if(!validataArgs(args)) {
-            System.err.println("sdfdfsdf");
+        Validator validator = new Validator(SUPPORTED_HOSTS, SUPPORTED_LOCALES, SUPPORTED_FILE_FORMATS);
+
+        if(!validator.validateArgs(args)) {
+            System.err.println("Invalid args. Failed validation with following args: " + Arrays.toString(args));
             return 1;
         }
 
         final String host = args[0];
-        final String locale = args[1];
-        final String outputFormat = args[2];
+        final String locale = args[1].toLowerCase();
+        final String outputFormat = args[2].toLowerCase();
         final String targetDir = args[3];
-        final List<Category> categories;
+
+        //List<Category> categories = null;
+
+        final URL url;
         try {
-            categories = requestHandler.sendRequest(new URL("https://" + host + "/api/v1/categories?locale=" + locale), outputFormat, targetDir);
+            url = new URL(SUPPORTED_PROTOCOLS.get(0) + host + CAT_CONTEXT +"?locale=" + locale);
         } catch (MalformedURLException e) {
+            System.err.println("Invalid URL format requested: " + e.getMessage() ); //should not happened
+            return 1;
+        }
+
+        final String response;
+        try {
+            //categories = requestHandler.sendRequest(url);
+            response = requestHandler.sendRequest(url);
+        } catch (Exception e) {
+            System.err.println("Failed to get response");
             e.printStackTrace();
             return 1;
         }
-        if (categories == null) {
-             System.err.println("MAIN FAILED TO SEND");
+
+        if (response == null) {
+             System.err.println("Invalid response, String/categories are expected !!!!");//todo change msg
              return 1;
-         }
+        }
+
+        //MAP TO JSON OR HTML response to categories
+        final ObjectMapper MAPPER = new ObjectMapper();
+        MAPPER.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        final List<Category> categories;
+        try {
+             categories = Arrays.asList(MAPPER.readValue(response, Category[].class));
+             // TODO consider OutputMapper.mapResponse - same way as outputWriter.writeFile
+        } catch (IOException e) {
+            System.err.println("Failed to map response");
+            e.printStackTrace();
+            return 1;
+        }
 
         try {
             outputWriter.writeFile(outputFormat, targetDir, categories);
         } catch (IOException e) {
-            System.out.println("failed to write response: " + e);
+            System.err.println("Failed writing to file");
+            e.printStackTrace();
             return 1;
         }
         System.out.println("successful");
@@ -58,28 +91,4 @@ public class ApiRunner {
         return 0;
     }
 
-    private static boolean validataArgs(String[] args) {
-        if(args.length < 4) {
-            System.err.println("Invalid input. too few input params");
-            return false;
-        }
-
-        //http://help.wixanswers.com/api/v1/categories?locale=en || https://wix.wixanswers.com/api/v1/categories?locale=en
-        if(!SUPPORTED_LOCALE.contains(args[1])){
-            System.err.println("Invalid locale. locale not supported");
-            return false;
-        }
-
-
-        String[] schemes = {"http","https"};
-        UrlValidator urlValidator = new UrlValidator(schemes);
-        if (urlValidator.isValid(ANSWERS_DEF_PROTOCOL + args[0] + ANSWERS_CAT)) {
-            System.out.println("url is valid");
-        } else {
-            System.out.println("url is invalid");
-            return false;
-        }
-
-        return true;
-    }
 }
