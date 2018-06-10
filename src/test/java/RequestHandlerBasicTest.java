@@ -1,16 +1,4 @@
-import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
-import sun.net.www.protocol.https.HttpsURLConnectionImpl;
-
-import javax.net.ssl.HttpsURLConnection;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.List;
 
 public class RequestHandlerBasicTest {
 

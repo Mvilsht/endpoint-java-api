@@ -1,6 +1,3 @@
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -13,14 +10,17 @@ public class ApiRunner {
     private final static List<String> SUPPORTED_LOCALES = Arrays.asList("en","es","fr","pt","de","it","ru","ja","ko");
     private final static List<String> SUPPORTED_FILE_FORMATS = Arrays.asList("html","json");
     private final static String CAT_CONTEXT = "/api/v1/categories";
-    private final static List<String> SUPPORTED_PROTOCOLS = Arrays.asList("https://","http://"); //first index is default
-    //TODO handle locale not available in only some locale - what to return when requested locale legal but not available
+    private final static List<String> SUPPORTED_PROTOCOLS = Arrays.asList("https://"); //first index is default
+    //todo handle locale not available in only some locale - what to return when requested locale legal but not available
     private final RequestHandler requestHandler;
     private final OutputWriter outputWriter;
+    private final Mapper mapper;
 
-    public ApiRunner(RequestHandler requestHandler, OutputWriter outputWriter) {
+
+    public ApiRunner(RequestHandler requestHandler, OutputWriter outputWriter, Mapper mapper) {
         this.requestHandler = requestHandler;
         this.outputWriter = outputWriter;
+        this.mapper = mapper;
     }
 
     public int run(String[] args) {
@@ -61,18 +61,21 @@ public class ApiRunner {
         }
 
         if (response == null) {
-             System.err.println("Invalid response, String/categories are expected !!!!");//todo change msg
+             System.err.println("Invalid response, String/categories are expected !!!!");
              return 1;
         }
 
         //MAP TO JSON OR HTML response to categories
-        final ObjectMapper MAPPER = new ObjectMapper();
-        MAPPER.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+//        final ObjectMapper MAPPER = new ObjectMapper();
+//        MAPPER.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        System.out.println("---");
+        System.out.println(response);
+        System.out.println("---");
 
         final List<Category> categories;
         try {
-             categories = Arrays.asList(MAPPER.readValue(response, Category[].class));
-             // TODO consider OutputMapper.mapResponse - same way as outputWriter.writeFile
+             categories = Arrays.asList(mapper.readValue(response, Category[].class));
         } catch (IOException e) {
             System.err.println("Failed to map response");
             e.printStackTrace();
@@ -80,15 +83,14 @@ public class ApiRunner {
         }
 
         try {
-            outputWriter.writeFile(outputFormat, targetDir, categories);
+            outputWriter.writeFile(outputFormat, targetDir, categories, mapper);
         } catch (IOException e) {
             System.err.println("Failed writing to file");
             e.printStackTrace();
             return 1;
         }
-        System.out.println("successful");
 
+        System.out.println("successful");
         return 0;
     }
-
 }
